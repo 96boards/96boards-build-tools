@@ -4,6 +4,10 @@ set -e
 
 trap cleanup 1 2 3 6 15
 
+# TODO:
+# * Add RPM support
+# * Make the CI job consume this script
+
 # For now we expect the user to run this command on a Debian based system
 DEP_PKGS="quilt devscripts"
 
