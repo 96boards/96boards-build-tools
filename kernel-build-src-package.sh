@@ -9,7 +9,7 @@ trap cleanup 1 2 3 6 15
 # * Make the CI job consume this script
 
 # For now we expect the user to run this command on a Debian based system
-DEP_PKGS="quilt devscripts"
+DEP_PKGS="quilt devscripts cpio rsync rpm"
 
 function error()
 {
@@ -28,7 +28,7 @@ function usage()
 	cat <<EOF
 Usage: $(basename $0) -k <kernel git url> -b <kernel git branch> -c <kernel config path>
 
-Generates a debian kernel source package for a custom kernel tree.
+Generates a debian and rpm kernel source package for a custom kernel tree.
 
 Options:
 
@@ -153,11 +153,45 @@ debian/bin/genorig.py ../linux
 debian/rules orig
 fakeroot debian/rules source
 debuild -S -uc -us
+cd ..
+
+# Build rpm source package
+rpmversion=${kernel_version//-*/}
+git clone --depth 1 -b c7-aarch64 git://git.centos.org/rpms/kernel-aarch64.git
+cd kernel-aarch64
+sed -i "s/\%define rpmversion.*/\%define rpmversion $rpmversion/g" SPECS/kernel-aarch64.spec
+sed -i "s/\%define pkgrelease.*/\%define pkgrelease reference.${CUSTOM_BUILD_ID}/g" SPECS/kernel-aarch64.spec
+sed -i "s/\%define signmodules 1/\%define signmodules 0/g" SPECS/kernel-aarch64.spec
+sed -i "s/mv linux-\%{rheltarball}/mv linux-\*/g" SPECS/kernel-aarch64.spec
+sed -i '/\%{_libexecdir}\/perf-core\/\*/a\%{_datadir}\/perf-core\/\*' SPECS/kernel-aarch64.spec
+cp ../linux/${KERNEL_CONFIG} SOURCES/config-arm64-redhat
+
+# Make sure config is sane for centos
+sed -i "s/CONFIG_ATA=.*/CONFIG_ATA=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_ATA_PIIX=.*/CONFIG_ATA_PIIX=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_AUTOFS4_FS=.*/CONFIG_AUTOFS4_FS=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_SATA_AHCI=.*/CONFIG_SATA_AHCI=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_SATA_AHCI_PLATFORM=.*/CONFIG_SATA_AHCI_PLATFORM=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_AHCI_HIP05=.*/CONFIG_AHCI_HIP05=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_AMD_XGBE=.*/CONFIG_AMD_XGBE=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_SCSI_HISI_SAS=.*/CONFIG_SCSI_HISI_SAS=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_IPV6=.*/CONFIG_IPV6=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_HNS_MDIO=.*/CONFIG_HNS_MDIO=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_HNS=.*/CONFIG_HNS=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_HNS_DSAF=.*/CONFIG_HNS_DSAF=y/g" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_HNS_ENET=.*/CONFIG_HNS_ENET=y/g" SOURCES/config-arm64-redhat
+# Temporarily disable KVM until it is properly supported, breaks anaconda
+sed -i "/CONFIG_KVM_.*/d" SOURCES/config-arm64-redhat
+sed -i "s/CONFIG_KVM=.*/# CONFIG_KVM is not set/g" SOURCES/config-arm64-redhat
+
+cp ../orig/*.orig.tar.xz SOURCES/linux-${rpmversion}-reference.${CUSTOM_BUILD_ID}.tar.xz
+rpmbuild --nodeps --define "%_topdir `pwd`" -bs SPECS/kernel-aarch64.spec
+cd ..
 
 # Copy back the resulted artifacts
 mkdir -p $OUT_DIR
-cp -p $BUILD_DIR/linux_* $OUT_DIR
-echo "Source package available at $OUT_DIR"
+cp -p $BUILD_DIR/linux_* $BUILD_DIR/kernel-aarch64/SRPMS/*.src.rpm $OUT_DIR
+echo "Source packages available at $OUT_DIR"
 
 # Clean-up
 cleanup
