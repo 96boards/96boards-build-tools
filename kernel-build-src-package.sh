@@ -168,6 +168,7 @@ sed -i "s/\%define pkgrelease.*/\%define pkgrelease reference.${CUSTOM_BUILD_ID}
 sed -i "s/\%define signmodules 1/\%define signmodules 0/g" SPECS/kernel-aarch64.spec
 sed -i "s/mv linux-\%{rheltarball}/mv linux-\*/g" SPECS/kernel-aarch64.spec
 sed -i '/\%{_libexecdir}\/perf-core\/\*/a\%{_datadir}\/perf-core\/\*' SPECS/kernel-aarch64.spec
+sed -i "s/^BuildRequires: openssl$/BuildRequires: openssl-devel/g" SPECS/kernel-aarch64.spec
 cp ../linux/${KERNEL_CONFIG} SOURCES/config-arm64-redhat
 
 # Make sure config is sane for centos
