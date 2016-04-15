@@ -133,6 +133,10 @@ cd debian-pkg
 
 # Allow our own versioning scheme
 sed -i 's/dfsg/linaro/g' debian/bin/genorig.py debian/lib/python/debian_linux/debian.py
+
+# Use build number as ABI
+sed -i "s/^abiname:.*/abiname: ${CUSTOM_BUILD_ID}/g" debian/config/defines
+
 cat << EOF > debian/changelog
 linux ($KDEB_PKGVERSION) jessie; urgency=medium
 
